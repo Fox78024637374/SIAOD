@@ -60,32 +60,56 @@ POW_CALLS = 20_000    # вызовов binary_pow на один замер: ин
 
 
 def array_sum(a: list[int]) -> int:
-    """Сумма элементов массива. Ожидаемая сложность: TODO (обосновать в отчёте)."""
-    # TODO: реализовать циклом
-    raise NotImplementedError
+    """Сумма элементов массива. Сложность: O(n)."""
+    total = 0
+    for value in a:
+        total += value
+    return total
 
 
 def array_max(a: list[int]) -> int:
-    """Максимум массива (массив непуст). Ожидаемая сложность: TODO."""
-    # TODO: реализовать циклом
-    raise NotImplementedError
-
+    """Максимум массива (массив непуст). Сложность: O(n)."""
+    if not a:
+        raise ValueError("array_max: пустой массив")
+    current_max = a[0]
+    for value in a[1:]:
+        if value > current_max:
+            current_max = value
+    return current_max
 
 def count_equal_pairs(a: list[int]) -> int:
-    """Число пар (i, j), i < j, таких что a[i] == a[j]. Ожидаемая сложность: TODO."""
-    # TODO: реализовать двойным циклом
-    raise NotImplementedError
+    """Число пар (i, j), i < j, с a[i] == a[j]. Сложность: O(n²)."""
+    count = 0
+    n = len(a)
+    for i in range(n):
+        ai = a[i]
+        for j in range(i + 1, n):
+            if ai == a[j]:
+                count += 1
+    return count
 
 
 def binary_pow(x: int, n: int, mod: int | None = None) -> int:
-    """Бинарное возведение в степень, n >= 0. Ожидаемая сложность: TODO.
+    """Бинарное возведение в степень, n >= 0. Сложность: O(log n).
 
-    При заданном mod все умножения выполняются по модулю (результат x**n % mod).
+    При заданном mod все умножения выполняются по модулю.
     """
-    # TODO: реализовать через квадрирование; при mod применять % mod после
-    # каждого умножения
-    raise NotImplementedError
+    result = 1 if mod is None else 1 % mod
+    base = x if mod is None else x % mod
 
+    while n > 0:
+        if n & 1:
+            result *= base
+            if mod is not None:
+                result %= mod
+
+        base *= base
+        if mod is not None:
+            base %= mod
+
+        n >>= 1
+
+    return result
 
 # ---------------------------------------------------------------------------
 # 2. Данные варианта: поиск каталога и загрузка

@@ -60,43 +60,54 @@ CALLS = {"fib_naive": 0, "fib_memo": 0}  # счётчики рекурсивны
 
 
 def factorial(n: int) -> int:
-    """Факториал n >= 0 рекурсивно. Ожидаемая сложность: TODO (обосновать в отчёте)."""
-    # TODO: базовое условие + рекурсивный переход
-    raise NotImplementedError
+    """Факториал n >= 0 рекурсивно. Сложность: Θ(n) по времени, Θ(n) по стеку."""
+    if n < 0:
+        raise ValueError("factorial: n должно быть >= 0")
+    if n == 0:
+        return 1
+    return n * factorial(n - 1)
 
 
 def fib_naive(n: int) -> int:
-    """n-е число Фибоначчи наивной рекурсией; увеличивает CALLS["fib_naive"].
+    """n-е число Фибоначчи наивной рекурсией. Сложность: Θ(φⁿ), φ = (1+√5)/2 ≈ 1.618.
 
-    Ожидаемая сложность: TODO (экспоненциальная — показать счётчиком вызовов).
+    Точное число вызовов при n >= 0: 2·F(n+1) − 1 (проверяется в self_check).
     """
     CALLS["fib_naive"] += 1
-    # TODO: F(0)=0, F(1)=1, далее F(n)=F(n-1)+F(n-2)
-    raise NotImplementedError
+    if n < 0:
+        raise ValueError("fib_naive: n должно быть >= 0")
+    if n < 2:
+        return n
+    return fib_naive(n - 1) + fib_naive(n - 2)
 
 
 def fib_memo(n: int, memo: dict[int, int] | None = None) -> int:
-    """n-е число Фибоначчи с мемоизацией; увеличивает CALLS["fib_memo"].
-
-    Ожидаемая сложность: TODO (линейная — сравнить счётчики в отчёте).
-    """
+    """n-е число Фибоначчи с мемоизацией. Сложность: Θ(n) по времени, Θ(n) по памяти."""
     CALLS["fib_memo"] += 1
-    # TODO: словарь memo передаётся по рекурсии; повторные подзадачи не пересчитываются
-    raise NotImplementedError
+    if n < 0:
+        raise ValueError("fib_memo: n должно быть >= 0")
+    if memo is None:
+        memo = {}
+    if n < 2:
+        return n
+    if n in memo:
+        return memo[n]
+    result = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)
+    memo[n] = result
+    return result
 
 
 def hanoi(n: int, src: str = "A", dst: str = "C", aux: str = "B",
           moves: list[tuple[str, str]] | None = None) -> int:
-    """Ханойские башни: перенести n дисков со стержня src на dst, вернуть число перемещений.
-
-    Если передан список moves, каждое перемещение верхнего диска дописывается
-    в него парой (откуда, куда). self_check проигрывает эти ходы и проверяет,
-    что больший диск ни разу не кладётся на меньший, все диски оказываются
-    на dst, а число перемещений равно 2**n - 1.
-    """
-    # TODO: базовое условие n == 0; иначе перенести n-1 на aux, 1 на dst, n-1 на dst
-    # (moves передаётся во все рекурсивные вызовы)
-    raise NotImplementedError
+    """Ханойские башни. Сложность: Θ(2ⁿ) перемещений, 2ⁿ − 1 ходов."""
+    if n == 0:
+        return 0
+    count = hanoi(n - 1, src, aux, dst, moves)
+    if moves is not None:
+        moves.append((src, dst))
+    count += 1
+    count += hanoi(n - 1, aux, dst, src, moves)
+    return count
 
 
 # ---------------------------------------------------------------------------
@@ -128,41 +139,57 @@ class DynamicArray:
         return self._capacity
 
     def _grow(self) -> None:
-        """Увеличить ёмкость в 2 раза и скопировать элементы в новый буфер."""
-        # TODO: выделить новый буфер размера 2 * capacity, перенести _size элементов,
-        # увеличить self.copies на число перенесённых элементов
-        raise NotImplementedError
+        """Увеличить ёмкость в 2 раза. Сложность: Θ(n), n = текущий размер."""
+        new_capacity = self._capacity * 2
+        new_buffer = [None] * new_capacity
+        for i in range(self._size):
+            new_buffer[i] = self._buffer[i]
+        self.copies += self._size
+        self._buffer = new_buffer
+        self._capacity = new_capacity
+
 
     def append(self, value) -> None:
-        """Добавить элемент в конец; при size == capacity сначала вызвать _grow.
+        """Амортизированная сложность: Θ(1) (метод учёта, см. отчёт)."""
+        if self._size == self._capacity:
+            self._grow()
+        self._buffer[self._size] = value
+        self._size += 1
 
-        Амортизированная сложность: TODO (обосновать методом учёта в отчёте).
-        """
-        # TODO: рост при необходимости, запись в ячейку _buffer[_size], инкремент _size
-        raise NotImplementedError
 
     def pop(self):
-        """Удалить и вернуть последний элемент; для пустого массива — IndexError.
+        """Удалить последний. Сложность: Θ(1) амортизированно (со сжатием — тоже)."""
+        if self._size == 0:
+            raise IndexError("pop from empty DynamicArray")
+        value = self._buffer[self._size - 1]
+        self._buffer[self._size - 1] = None
+        self._size -= 1
+        # Сжатие только при size <= capacity // 4 — иначе чередование append/pop
+        # на границе ёмкости даёт Θ(n) на операцию.
+        if (self._capacity > self.INITIAL_CAPACITY
+                and self._size <= self._capacity // 4):
+            new_capacity = max(self._capacity // 2, self.INITIAL_CAPACITY)
+            new_buffer = [None] * new_capacity
+            for i in range(self._size):
+                new_buffer[i] = self._buffer[i]
+            self.copies += self._size
+            self._buffer = new_buffer
+            self._capacity = new_capacity
+        return value
 
-        Сжатие буфера необязательно. Если реализуете его, уменьшайте ёмкость
-        вдвое, когда size опускается до capacity // 4, и не ниже
-        INITIAL_CAPACITY (перенесённые элементы тоже учитываются в copies):
-        сжатие уже при заполнении на ½ даёт Θ(n) на операцию, если чередовать
-        append и pop на границе ёмкости.
-        """
-        # TODO: проверка на пустоту, чтение _buffer[_size - 1], очистка ячейки
-        # (None — чтобы буфер не удерживал объект), декремент _size
-        raise NotImplementedError
 
     def get(self, index: int):
-        """Вернуть элемент по индексу 0 <= index < size; иначе IndexError."""
-        # TODO: проверка границ (включая отрицательные индексы) + чтение из буфера
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        if not 0 <= index < self._size:
+            raise IndexError(f"index {index} out of range for size {self._size}")
+        return self._buffer[index]
+
 
     def set(self, index: int, value) -> None:
-        """Записать элемент по индексу 0 <= index < size; иначе IndexError."""
-        # TODO: проверка границ + запись в буфер
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        if not 0 <= index < self._size:
+            raise IndexError(f"index {index} out of range for size {self._size}")
+        self._buffer[index] = value
 
 
 # ---------------------------------------------------------------------------
@@ -180,20 +207,20 @@ class Stack:
         return len(self._data)
 
     def push(self, value) -> None:
-        """Положить элемент на вершину. Амортизированная сложность: TODO."""
-        # TODO: делегировать DynamicArray.append
-        raise NotImplementedError
+        """Амортизированная сложность: Θ(1) — делегирует DynamicArray.append."""
+        self._data.append(value)
+
 
     def pop(self):
-        """Снять элемент с вершины; для пустого стека — IndexError."""
-        # TODO: делегировать DynamicArray.pop
-        raise NotImplementedError
+        """Сложность: Θ(1) амортизированно."""
+        return self._data.pop()
+
 
     def peek(self):
-        """Вернуть вершину без удаления; для пустого стека — IndexError."""
-        # TODO: для пустого стека — IndexError с понятным сообщением,
-        # иначе DynamicArray.get(len - 1)
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        if len(self._data) == 0:
+            raise IndexError("peek from empty Stack")
+        return self._data.get(len(self._data) - 1)
 
 
 class _Node:
@@ -223,24 +250,53 @@ class Deque:
         return self._size
 
     def push_front(self, value) -> None:
-        """Добавить элемент в начало. Сложность: TODO."""
-        # TODO: создать узел, перевязать ссылки head (учесть пустой дек)
-        raise NotImplementedError
+        """Сложность: Θ(1) в худшем случае (без амортизации)."""
+        node = _Node(value, prev=None, next=self._head)
+        if self._head is not None:
+            self._head.prev = node
+        else:
+            self._tail = node
+        self._head = node
+        self._size += 1
+
 
     def push_back(self, value) -> None:
-        """Добавить элемент в конец. Сложность: TODO."""
-        # TODO: симметрично push_front для tail
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        node = _Node(value, prev=self._tail, next=None)
+        if self._tail is not None:
+            self._tail.next = node
+        else:
+            self._head = node
+        self._tail = node
+        self._size += 1
+
 
     def pop_front(self):
-        """Извлечь элемент из начала; для пустого дека — IndexError."""
-        # TODO: учесть переход к пустому деку (tail тоже обнуляется)
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        if self._head is None:
+            raise IndexError("pop_front from empty Deque")
+        node = self._head
+        self._head = node.next
+        if self._head is not None:
+            self._head.prev = None
+        else:
+            self._tail = None
+        self._size -= 1
+        return node.value
+
 
     def pop_back(self):
-        """Извлечь элемент из конца; для пустого дека — IndexError."""
-        # TODO: симметрично pop_front (при опустошении обнуляется и head)
-        raise NotImplementedError
+        """Сложность: Θ(1)."""
+        if self._tail is None:
+            raise IndexError("pop_back from empty Deque")
+        node = self._tail
+        self._tail = node.prev
+        if self._tail is not None:
+            self._tail.next = None
+        else:
+            self._head = None
+        self._size -= 1
+        return node.value
 
 
 # ---------------------------------------------------------------------------
